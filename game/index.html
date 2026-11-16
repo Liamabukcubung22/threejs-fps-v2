@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DUSTFALL — Tactical FPS</title>
+<style>
+  :root { --amber:#ffb454; --teal:#57c8b8; --red:#ff5a4e; --ink:#e8e2d4; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#1a1512;
+    font-family:"Segoe UI", system-ui, sans-serif; color:var(--ink); }
+  #app { position:fixed; inset:0; }
+  canvas { display:block; }
+  .noselect { user-select:none; -webkit-user-select:none; }
+  /* ---------- HUD ---------- */
+  #hud { position:fixed; inset:0; pointer-events:none; display:none; }
+  #hud.on { display:block; }
+  #crosshair { position:absolute; left:50%; top:50%; width:0; height:0; }
+  #crosshair i { position:absolute; background:rgba(255,255,255,.9); box-shadow:0 0 2px #000; }
+  #crosshair .dot { width:3px; height:3px; left:-1.5px; top:-1.5px; border-radius:50%; }
+  #crosshair .t { width:2px; height:8px; left:-1px; top:calc(-1 * var(--gap, 10px) - 8px); }
+  #crosshair .b { width:2px; height:8px; left:-1px; top:var(--gap, 10px); }
+  #crosshair .l { width:8px; height:2px; top:-1px; left:calc(-1 * var(--gap, 10px) - 8px); }
+  #crosshair .r { width:8px; height:2px; top:-1px; left:var(--gap, 10px); }
+  #hitmark { position:absolute; left:50%; top:50%; width:26px; height:26px; margin:-13px 0 0 -13px;
+    opacity:0; }
+  #hitmark::before, #hitmark::after { content:""; position:absolute; inset:0;
+    background:linear-gradient(45deg, transparent 46%, #fff 46%, #fff 54%, transparent 54%),
+               linear-gradient(-45deg, transparent 46%, #fff 46%, #fff 54%, transparent 54%); }
+  #hitmark.kill::before, #hitmark.kill::after { background:linear-gradient(45deg, transparent 46%, #ff5a4e 46%, #ff5a4e 54%, transparent 54%),
+               linear-gradient(-45deg, transparent 46%, #ff5a4e 46%, #ff5a4e 54%, transparent 54%); }
+  #topbar { position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    display:flex; gap:14px; align-items:center; text-align:center; }
+  .pill { background:rgba(10,8,6,.62); border:1px solid rgba(255,255,255,.14);
+    border-radius:6px; padding:6px 14px; font-weight:700; letter-spacing:.06em; }
+  #timer { font-size:22px; color:#fff; min-width:86px; }
+  #timer.low { color:var(--red); }
+  #score { font-size:18px; }
+  #score .atk { color:var(--amber); } #score .def { color:var(--teal); }
+  #roundLabel { font-size:11px; color:#cbbfa5; letter-spacing:.14em; }
+  #moneyBox { position:absolute; top:14px; right:16px; text-align:right; }
+  #money { font-size:24px; font-weight:800; color:var(--amber); }
+  #moneyLabel { font-size:11px; color:#cbbfa5; letter-spacing:.14em; }
+  #feed { position:absolute; top:86px; right:16px; text-align:right; font-size:13px; line-height:1.7; }
+  #feed div { background:rgba(10,8,6,.55); padding:2px 8px; border-radius:4px; margin-top:4px; display:inline-block; }
+  #feed b.atk { color:var(--amber); } #feed b.def { color:var(--teal); }
+  #feed b.you { color:#fff; }
+  #bl { position:absolute; left:18px; bottom:16px; }
+  #hpNum { font-size:34px; font-weight:800; line-height:1; }
+  #hpBarWrap { width:210px; height:10px; background:rgba(255,255,255,.14); border-radius:5px; margin-top:6px; overflow:hidden; }
+  #hpBar { height:100%; width:100%; background:linear-gradient(90deg,#57c8b8,#8fe3c8); }
+  #hpBar.low { background:linear-gradient(90deg,#ff5a4e,#ff8a5e); }
+  #armorLine { font-size:12px; color:#9fc6ff; margin-top:4px; letter-spacing:.08em; }
+  #br { position:absolute; right:18px; bottom:16px; text-align:right; }
+  #ammo { font-size:38px; font-weight:800; line-height:1; }
+  #ammo small { font-size:18px; color:#b8ac93; }
+  #gunName { font-size:13px; letter-spacing:.12em; color:#d8cdb4; margin-top:4px; }
+  #grenades { font-size:12px; color:#cbbfa5; margin-top:2px; letter-spacing:.08em; }
+  #banner { position:absolute; top:22%; left:50%; transform:translateX(-50%); text-align:center;
+    font-size:30px; font-weight:800; letter-spacing:.1em; color:#fff;
+    text-shadow:0 2px 12px rgba(0,0,0,.8); opacity:0; transition:opacity .25s; }
+  #subbanner { position:absolute; top:calc(22% + 44px); left:50%; transform:translateX(-50%);
+    font-size:15px; color:#e8d9b0; text-shadow:0 1px 6px #000; opacity:0; transition:opacity .25s; }
+  #progressWrap { position:absolute; left:50%; bottom:19%; transform:translateX(-50%);
+    width:280px; display:none; text-align:center; }
+  #progressLabel { font-size:13px; letter-spacing:.14em; margin-bottom:6px; color:#ffe9b0; }
+  #progressBarWrap { height:10px; background:rgba(255,255,255,.16); border-radius:5px; overflow:hidden; }
+  #progressBar { height:100%; width:0%; background:var(--amber); }
+  #bombStatus { position:absolute; left:50%; bottom:120px; transform:translateX(-50%);
+    font-size:14px; font-weight:700; color:#ff8a5e; letter-spacing:.1em; display:none;
+    background:rgba(10,8,6,.6); padding:5px 12px; border-radius:5px; }
+  #vignette { position:absolute; inset:0; pointer-events:none; opacity:0;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(255,30,10,.55) 100%); }
+  #hint { position:absolute; left:50%; bottom:64px; transform:translateX(-50%);
+    font-size:12.5px; color:#d8cdb4; background:rgba(10,8,6,.55); padding:5px 12px;
+    border-radius:5px; letter-spacing:.05em; }
+  /* ---------- Buy menu ---------- */
+  #buy { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(8,6,4,.72); z-index:5; }
+  #buy.on { display:flex; }
+  #buyCard { width:620px; max-width:94vw; background:#221c16; border:1px solid #6b5636;
+    border-radius:10px; padding:20px 24px; }
+  #buyCard h2 { color:var(--amber); letter-spacing:.14em; font-size:20px; }
+  #buyCard h2 span { float:right; color:#fff; font-size:18px; }
+  #buyCard p.sub { color:#b8ac93; font-size:13px; margin:6px 0 14px; }
+  .shopRow { display:flex; justify-content:space-between; align-items:center; padding:9px 10px;
+    border:1px solid rgba(255,255,255,.1); border-radius:6px; margin-bottom:7px; cursor:pointer; }
+  .shopRow:hover, .shopRow.sel { border-color:var(--amber); background:rgba(255,180,84,.1); }
+  .shopRow .k { color:var(--amber); font-weight:800; width:26px; }
+  .shopRow .n { flex:1; font-weight:700; }
+  .shopRow .d { flex:2; color:#b8ac93; font-size:12.5px; }
+  .shopRow .p { color:var(--amber); font-weight:800; }
+  .shopRow.owned .p { color:var(--teal); }
+  .shopRow.cant { opacity:.45; }
+  #buyHint { font-size:12.5px; color:#b8ac93; margin-top:8px; }
+  /* ---------- Overlays ---------- */
+  .overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at 50% 35%, rgba(60,40,18,.88), rgba(10,8,6,.94));
+    z-index:10; text-align:center; }
+  .overlay.hidden { display:none; }
+  .card { max-width:640px; padding:28px; }
+  .card h1 { font-size:56px; letter-spacing:.22em; color:var(--amber);
+    text-shadow:0 0 34px rgba(255,150,40,.35); }
+  .card h1 span { color:var(--teal); }
+  .card h3 { letter-spacing:.3em; color:#d8cdb4; font-size:14px; margin:8px 0 18px; }
+  .card p { color:#cfc4a8; font-size:14.5px; line-height:1.65; }
+  .card .keys { margin:16px auto; text-align:left; display:inline-block; font-size:13.5px;
+    line-height:1.9; color:#e8e2d4; }
+  .card .keys b { color:var(--amber); display:inline-block; min-width:118px; }
+  .bigBtn { margin-top:18px; display:inline-block; background:var(--amber); color:#241a08;
+    font-weight:800; font-size:18px; letter-spacing:.1em; padding:13px 34px; border:none;
+    border-radius:8px; cursor:pointer; }
+  .bigBtn:hover { background:#ffc46e; }
+  .tiny { font-size:12px; color:#8f8468; margin-top:14px; }
+  #endTitle { font-size:44px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="app" class="noselect"></div>
+
+<div id="hud">
+  <div id="crosshair"><i class="dot"></i><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i></div>
+  <div id="hitmark"></div>
+  <div id="topbar">
+    <div class="pill" id="roundLabel">ROUND 1</div>
+    <div class="pill" id="timer">1:40</div>
+    <div class="pill" id="score"><span class="atk">DUSTERS 0</span> &nbsp;—&nbsp; <span class="def">0 WARDENS</span></div>
+  </div>
+  <div id="moneyBox"><div id="money">$800</div><div id="moneyLabel">DUSTERS FUNDS</div></div>
+  <div id="feed"></div>
+  <div id="bl">
+    <div id="hpNum">100</div>
+    <div id="hpBarWrap"><div id="hpBar"></div></div>
+    <div id="armorLine"></div>
+  </div>
+  <div id="br">
+    <div id="ammo">12 <small>/ 48</small></div>
+    <div id="gunName">P9 SIDEARM</div>
+    <div id="grenades">FRAG ×0 &nbsp;·&nbsp; B — BUY MENU</div>
+  </div>
+  <div id="banner"></div>
+  <div id="subbanner"></div>
+  <div id="progressWrap"><div id="progressLabel">PLANTING DEVICE…</div><div id="progressBarWrap"><div id="progressBar"></div></div></div>
+  <div id="bombStatus">DEVICE PLANTED — 35.0s</div>
+  <div id="vignette"></div>
+  <div id="hint"></div>
+</div>
+
+<div id="buy"><div id="buyCard">
+  <h2>BUY MENU <span id="buyMoney">$800</span></h2>
+  <p class="sub">Dusters quartermaster — prices in dollars. Keys 1–6 buy, B or Esc closes. Weapons stay with you while you survive the round.</p>
+  <div id="shop"></div>
+  <div id="buyHint">Tip: stop moving before you shoot — accuracy beats speed. Headshots deal 2.5× damage.</div>
+</div></div>
+
+<div id="start" class="overlay"><div class="card">
+  <h1>DUST<span>FALL</span></h1>
+  <h3>KESTREL FOUNDRY · 5 v 5 TACTICAL FPS</h3>
+  <p>You are a <b style="color:#ffb454">Duster</b>. Plant the device at Site A or Site B, or wipe out the
+  <b style="color:#57c8b8">Wardens</b>. Win rounds, earn dollars, buy better guns. First to 5 rounds takes the match.
+  Stop, aim, then fire — spraying on the move will miss.</p>
+  <div class="keys">
+    <div><b>W A S D</b> move &nbsp;·&nbsp; <b>Mouse</b> look &nbsp;·&nbsp; <b>Click</b> fire</div>
+    <div><b>R</b> reload &nbsp;·&nbsp; <b>1 / 2 / 3</b> weapons &nbsp;·&nbsp; <b>4 / G</b> frag grenade</div>
+    <div><b>C / Ctrl</b> crouch &nbsp;·&nbsp; <b>Shift</b> walk slow &nbsp;·&nbsp; <b>E</b> hold: plant / defuse</div>
+    <div><b>B</b> buy menu &nbsp;·&nbsp; <b>← →</b> turn (no mouse? use arrows)</div>
+  </div>
+  <button class="bigBtn" id="playBtn">CLICK TO PLAY</button>
+  <div class="tiny">An original game. Map, names, art and sounds made for this entry. Runs fully offline.</div>
+</div></div>
+
+<div id="end" class="overlay hidden"><div class="card">
+  <h1 id="endTitle">DUSTERS WIN</h1>
+  <h3 id="endScore">5 — 2</h3>
+  <p id="endText"></p>
+  <button class="bigBtn" id="againBtn">PLAY AGAIN</button>
+  <div class="tiny">Click Play Again or press R to start a fresh match.</div>
+</div></div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

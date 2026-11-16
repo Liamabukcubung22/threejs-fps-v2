@@ -1,5 +1,11 @@
 # DUSTFALL — Tactical FPS
 
+[![make.fun · threejs-fps-02](https://make.fun/badge/threejs-fps-02.svg)](https://make.fun/bounty/threejs-fps-02)
+[![rank](https://make.fun/badge/threejs-fps-02/Liamabukcubung22/threejs-fps-v2/rank.svg)](https://make.fun/bounty/threejs-fps-02/leaderboard)
+[![reward](https://make.fun/badge/threejs-fps-02/Liamabukcubung22/threejs-fps-v2/reward.svg)](https://make.fun/bounty/threejs-fps-02)
+
+Built for the [make.fun](https://make.fun/bounty/threejs-fps-02) bounty "Make the best three.js tactical FPS" (threejs-fps-02).
+
 A three.js tactical FPS, 5v5 and round-based, in the style Counter-Strike
 made famous — with its own map, names, art and sounds.
 
